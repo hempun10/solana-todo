@@ -4,7 +4,7 @@ import '../styles/global.css'
 // Import the solana wallet css
 
 function MyApp({ Component, pageProps }) {
-    return (
+    return ( 
         <>
             <Head>
                 <title>Todo App</title>
