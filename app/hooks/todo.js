@@ -79,16 +79,64 @@ export function useTodo() {
     }, [connection, anchorWallet])
 
     useEffect(() => {
+        //Fetch UserProfile if there is a profile than gets its TodoAccounts
+        const findprofileAccounts = async()=>{
+           if(program && publicKey && !transactionPending){
+            try{
+                setLoading(true)
+                const [profilepda,profileBump]= await findProgramAddressSync([utf8.encode('USER_STATE'),publicKey.toBuffer()],program.programId)
+                const profileAccount = await program.account.userProfile.fetch(profilepda)
 
-        if(initialized) {
-            setTodos(dummyTodos)
+                if(profileAccount){
+                    setLastTodo(profileAccount.lastTodo)
+                    setInitialized(true)
+
+                    const todoAccounts = await program.account.todoAccount.all([authorFilter(publicKey.toString)])
+                    setTodos(todoAccounts)
+                }else{
+                    console.log("Not yet Initalized");
+                    setInitialized(false)
+                }
+            }catch(error){
+                console.log(error)
+                setInitialized(false)
+                setTodos([])
+            } finally{
+                setLoading(false)
+            }
+           }
         }
+        findprofileAccounts()
 
-
-    }, [initialized])
+    }, [publicKey,program,transactionPending])
 
     const handleChange = (e)=> {
         setInput(e.target.value)
+    }
+    const initalizeUser = async ()=>{
+        //Check if the program exist and wallet is connected
+        if(program && publicKey){
+            try{
+                setTransactionPending(true)
+                const [profilepda,profileBump]= findProgramAddressSync([utf8.encode('USER_STATE'),publicKey.toBuffer()],program.programId)
+
+                //Actual Intraction with Backend
+                const tx = await program.methods.initalizeUser().accounts({
+                    userProfile: profilepda,
+                    authority: publicKey,
+                    systemProgram: SystemProgram.programId,
+                })
+                .rpc()
+                setInitialized(true)
+                toast.success("User Initialized")
+            }catch(error){
+                console.log(error)
+                toast.error("User Initialization Failed")
+            }finally{
+                setTransactionPending(false)
+            }
+        }
+        //Then run initalizeUser() from smart Contract
     }
   
     const initializeStaticUser = () => {
@@ -146,5 +194,5 @@ export function useTodo() {
     const incompleteTodos = useMemo(() => todos.filter((todo) => !todo.account.marked), [todos])
     const completedTodos = useMemo(() => todos.filter((todo) => todo.account.marked), [todos])
 
-    return { initialized, initializeStaticUser, loading, transactionPending, completedTodos, incompleteTodos, markStaticTodo, removeStaticTodo, addStaticTodo, input, setInput, handleChange }
+    return { initialized, initializeStaticUser, loading, transactionPending, completedTodos, incompleteTodos, markStaticTodo, removeStaticTodo, addStaticTodo, input, setInput, handleChange,initalizeUser }
 }
